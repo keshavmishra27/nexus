@@ -4,25 +4,19 @@ import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, D
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 type Progress = {
-  verifiedTotal: number;
-  pendingTotal: number;
-  departmentRows: {
+  verifiedTotal?: number;
+  pendingTotal?: number;
+  departmentRows?: {
     department: string;
     verifiedCount: number;
     rank: number;
     progress: number;
   }[];
+  members?: any[];
 };
 
 export function TeamProgress({ data, user }: { data: Progress, user: any }) {
-  const members = [
-    { id: 1, name: "Aria Thorne", totalPoints: 480, role: "Core", title: "System Architect", avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Aria", departments: [{ name: "Frontend / Web", points: 150 }, { name: "AI & Machine Learning", points: 330 }], color: "magenta", spark: [14, 16, 4] },
-    { id: 2, name: user?.name || "Mayank Sharma", totalPoints: 345, role: "Core", title: "Lead Fullstack & AI", avatar: `https://api.dicebear.com/9.x/avataaars/svg?seed=${user?.name}`, departments: [{ name: "Frontend / Web", points: 150 }, { name: "AI & Machine Learning", points: 195 }], color: "cyan", spark: [24, 18, 10, 2], isYou: true },
-    { id: 3, name: "Kaelen Vance", totalPoints: 310, role: "Member", title: "Web Performance", avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Kaelen", departments: [{ name: "Backend", points: 120 }, { name: "DevOps", points: 190 }], color: "slate", spark: [12, 18, 12, 8] },
-    { id: 4, name: "Zara Chen", totalPoints: 290, role: "Member", title: "Neural Vision & AI", avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Zara", departments: [{ name: "AI", points: 290 }], color: "slate", spark: [22, 14, 16, 10] },
-    { id: 5, name: "Devon Lee", totalPoints: 245, role: "Member", title: "Core Protocols", avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Devon", departments: [{ name: "Security", points: 245 }], color: "slate", spark: [20, 15, 18, 12] },
-    { id: 6, name: "Sora Tanaka", totalPoints: 220, role: "Member", title: "Cloud Infrastructure", avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Sora", departments: [{ name: "Cloud", points: 220 }], color: "slate", spark: [24, 20, 15, 14] },
-  ];
+  const members = data?.members || [];
 
   return (
     <section className="space-y-space-md">
