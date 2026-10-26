@@ -79,7 +79,7 @@ export default function LoginPage() {
       setIdentifier("arjun@nexus.org");
       setPassword("nexus-core-2026");
     } else {
-      setIdentifier("kaelen@nexus.org");
+      setIdentifier("sarthakgupta1907@nexus.org");
       setPassword("nexus-dev-2026");
     }
     handleResetGame();
@@ -204,7 +204,7 @@ export default function LoginPage() {
                 onClick={() => fillQuickCreds("member")}
                 className="px-2.5 py-1 rounded-sm border border-white/20 text-neutral-300 hover:text-white hover:border-white transition-colors cursor-pointer"
               >
-                Member (Kaelen)
+                Member (sarthakgupta1907)
               </button>
             </div>
             <p className="text-[9px] font-mono text-neutral-600 pt-1">

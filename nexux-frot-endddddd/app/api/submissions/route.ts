@@ -15,8 +15,8 @@ export async function POST(req: Request) {
     const supabase = getServiceSupabase();
     const formData = await req.formData();
 
-    const memberId = formData.get("memberId") as string;
-    const activityId = formData.get("activityId") as string;
+    const memberIdRaw = (formData.get("memberId") as string) || "";
+    const activityIdRaw = (formData.get("activityId") as string) || "";
     const details = (formData.get("details") as string) || "";
     const externalLink = (formData.get("externalLink") as string) || "";
     const occurredOn =
@@ -25,12 +25,16 @@ export async function POST(req: Request) {
 
     const proofFile = formData.get("proofFile") as File | null;
 
-    if (!memberId || !activityId || details.trim().length < 8) {
+    if (details.trim().length < 8) {
       return NextResponse.json(
-        { error: "Missing required fields: member, activity, or details (min 8 chars)" },
+        { error: "Description must be at least 8 characters detailing your achievement." },
         { status: 400 }
       );
     }
+
+    const isUuid = (str?: string) =>
+      typeof str === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
     let proofUrl = externalLink.trim();
 
@@ -70,26 +74,77 @@ export async function POST(req: Request) {
       proofUrl = "/logo/official_jewel.png";
     }
 
-    // 2. Fetch member profile
-    const { data: profile, error: profError } = await supabase
-      .from("profiles")
-      .select("id, full_name, department")
-      .eq("id", memberId)
-      .single();
+    // 2. Resolve member profile
+    let profile: { id: string; full_name: string | null; department: string | null } | null = null;
 
-    if (profError || !profile) {
+    if (isUuid(memberIdRaw)) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, department")
+        .eq("id", memberIdRaw)
+        .maybeSingle();
+      if (data) profile = data;
+    }
+
+    if (!profile && memberIdRaw) {
+      const cleanName = memberIdRaw.trim();
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, department")
+        .eq("team_id", TEAM_ID)
+        .ilike("full_name", `%${cleanName}%`)
+        .limit(1);
+      if (data && data.length > 0) profile = data[0];
+    }
+
+    if (!profile) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, department")
+        .eq("team_id", TEAM_ID)
+        .eq("is_active", true)
+        .limit(1);
+      if (data && data.length > 0) profile = data[0];
+    }
+
+    if (!profile) {
       return NextResponse.json(
-        { error: `Member profile not found for id ${memberId}` },
+        { error: "No active team member profile found for attribution." },
         { status: 404 }
       );
     }
 
-    // 3. Fetch activity catalog details
-    const { data: activity } = await supabase
-      .from("activity_catalog")
-      .select("id, label, level, points, category")
-      .eq("id", activityId)
-      .single();
+    // 3. Resolve activity catalog details
+    let activity: { id: string; label: string; level: string | null; points: number; category: string } | null = null;
+
+    if (isUuid(activityIdRaw)) {
+      const { data } = await supabase
+        .from("activity_catalog")
+        .select("id, label, level, points, category")
+        .eq("id", activityIdRaw)
+        .maybeSingle();
+      if (data) activity = data;
+    }
+
+    if (!activity && activityIdRaw) {
+      const cleanAct = activityIdRaw.trim();
+      const { data } = await supabase
+        .from("activity_catalog")
+        .select("id, label, level, points, category")
+        .or(`code.eq.${cleanAct},label.ilike.%${cleanAct}%`)
+        .limit(1);
+      if (data && data.length > 0) activity = data[0];
+    }
+
+    if (!activity) {
+      const { data } = await supabase
+        .from("activity_catalog")
+        .select("id, label, level, points, category")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .limit(1);
+      if (data && data.length > 0) activity = data[0];
+    }
 
     const activityTitle = activity?.label
       ? activity.level
@@ -98,12 +153,20 @@ export async function POST(req: Request) {
       : "Sprint Milestone";
 
     const points = activity?.points ?? 20;
+    const finalActivityId = activity?.id;
+
+    if (!finalActivityId) {
+      return NextResponse.json(
+        { error: "No activity available in activity catalog." },
+        { status: 400 }
+      );
+    }
 
     // 4. Insert submission into Supabase table
     const submissionRecord = {
-      member_id: memberId,
+      member_id: profile.id,
       team_id: TEAM_ID,
-      activity_id: activityId,
+      activity_id: finalActivityId,
       occurred_on: occurredOn,
       title: `Nexus: ${profile.full_name || "Member"}`,
       details: details.trim(),
@@ -172,6 +235,13 @@ export async function PATCH(req: Request) {
     const isUuid = (str?: string) =>
       typeof str === "string" &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+    if (!isUuid(id)) {
+      return NextResponse.json(
+        { error: "Submission ID is not a valid database UUID." },
+        { status: 400 }
+      );
+    }
 
     const reviewerUuid = isUuid(reviewerName) ? reviewerName : null;
 

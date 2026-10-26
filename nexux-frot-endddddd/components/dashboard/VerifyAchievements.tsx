@@ -19,15 +19,32 @@ export function VerifyAchievements({
   const [rejectModalId, setRejectModalId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [activeTab, setActiveTab] = useState<"DONE" | "ALL">("DONE");
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const doneSubmissions = submissions.filter((s) => s.status === "DONE");
   const displayList = activeTab === "DONE" ? doneSubmissions : submissions;
 
-  const handleConfirmReject = () => {
+  const handleConfirmReject = async () => {
     if (!rejectModalId || rejectionReason.trim().length < 8) return;
-    onReject(rejectModalId, rejectionReason.trim());
+    const targetId = rejectModalId;
+    const reason = rejectionReason.trim();
     setRejectModalId(null);
     setRejectionReason("");
+    setProcessingId(targetId);
+    try {
+      await onReject(targetId, reason);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleApproveClick = async (id: string) => {
+    setProcessingId(id);
+    try {
+      await onApprove(id);
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   return (
@@ -138,6 +155,7 @@ export function VerifyAchievements({
                       width={20}
                       height={20}
                       className="w-full h-full object-cover"
+                      unoptimized
                     />
                   </div>
                   <span>VIEW PROOF</span>
@@ -149,17 +167,21 @@ export function VerifyAchievements({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setRejectModalId(item.id)}
-                      className="px-3 py-1.5 border border-red-500/40 text-red-500 hover:bg-red-500 hover:text-white rounded-sm text-xs font-mono transition-colors flex items-center gap-1"
+                      disabled={processingId === item.id}
+                      className="px-3 py-1.5 border border-red-500/40 text-red-500 hover:bg-red-500 hover:text-white rounded-sm text-xs font-mono transition-colors flex items-center gap-1 disabled:opacity-50"
                     >
                       <X className="w-3.5 h-3.5" />
                       REJECT
                     </button>
                     <button
-                      onClick={() => onApprove(item.id)}
-                      className="px-4 py-1.5 bg-ink text-onink hover:opacity-90 rounded-sm text-xs font-mono font-bold tracking-wider transition-opacity flex items-center gap-1"
+                      onClick={() => handleApproveClick(item.id)}
+                      disabled={processingId === item.id}
+                      className="px-4 py-1.5 bg-ink text-onink hover:opacity-90 rounded-sm text-xs font-mono font-bold tracking-wider transition-opacity flex items-center gap-1 disabled:opacity-50"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      VERIFY (+{item.points} PTS)
+                      {processingId === item.id
+                        ? "SAVING TO DB..."
+                        : `VERIFY (+${item.points || 20} PTS)`}
                     </button>
                   </div>
                 )}

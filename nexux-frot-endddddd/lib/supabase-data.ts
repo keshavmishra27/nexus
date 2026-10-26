@@ -180,11 +180,11 @@ export async function fetchMembers(): Promise<MemberProfile[]> {
   // 4. Map profiles into MemberProfile[]
   const members: MemberProfile[] = (profiles ?? []).map((prof) => {
     const memberSubs = subsByMember.get(prof.id) ?? [];
-    // Include ALL non-rejected submissions (pending, verified, done)
+    // Include ONLY verified submissions for official points & completed achievements
     const countedSubs = memberSubs.filter(
       (s) => {
         const stat = (s.status || "").toLowerCase();
-        return stat !== "rejected" && stat !== "revoked";
+        return stat === "verified";
       }
     );
 
@@ -340,7 +340,18 @@ export async function fetchSubmissions(): Promise<AchievementSubmission[]> {
       points = activity.points;
     } else if (row.net_points != null && row.net_points > 0) {
       points = row.net_points;
+    } else {
+      const label = activity?.label || row.title || "";
+      points = CANONICAL_ACTIVITIES.find(a => a.title === label || label.includes(a.title))?.points ?? 20;
     }
+
+    const reviewedBy =
+      row.decided_by ??
+      (row.decision_note?.startsWith("Verified by ")
+        ? row.decision_note.replace("Verified by ", "")
+        : row.decision_note?.includes("Rejected by ")
+        ? row.decision_note.split("Rejected by ")[1]?.replace(")", "")
+        : undefined);
 
     return {
       id: row.id,
@@ -356,7 +367,7 @@ export async function fetchSubmissions(): Promise<AchievementSubmission[]> {
       activityTitle,
       points,
       submittedAt: formatRelativeTime(row.submitted_at),
-      reviewedBy: row.decided_by ?? undefined,
+      reviewedBy,
       reviewedAt: row.decided_at
         ? formatRelativeTime(row.decided_at)
         : undefined,

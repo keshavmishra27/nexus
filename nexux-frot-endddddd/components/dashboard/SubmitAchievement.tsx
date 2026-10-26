@@ -47,14 +47,26 @@ export function SubmitAchievement({
 
   const [selectedMemberId, setSelectedMemberId] = useState(findMatchingMemberId());
 
-  // Update selected member when members list loads or updates
+  // Keep selected member in sync when live Supabase members load
   useEffect(() => {
-    if (!selectedMemberId && members && members.length > 0) {
-      setTimeout(() => {
-        setSelectedMemberId(findMatchingMemberId());
-      }, 0);
+    if (members && members.length > 0) {
+      const isCurrentValid = members.some((m) => m.id === selectedMemberId);
+      if (!isCurrentValid) {
+        const matched = findMatchingMemberId();
+        setSelectedMemberId(matched || members[0].id);
+      }
     }
   }, [members, selectedMemberId, findMatchingMemberId]);
+
+  // Keep activity selection in sync when live Supabase activity catalog loads
+  useEffect(() => {
+    if (activityList && activityList.length > 0) {
+      const isCurrentValid = activityList.some((act) => act.id === activityId);
+      if (!isCurrentValid) {
+        setActivityId(activityList[0].id);
+      }
+    }
+  }, [activityList, activityId]);
 
   const [details, setDetails] = useState("");
   const [externalLink, setExternalLink] = useState("");
@@ -95,13 +107,27 @@ export function SubmitAchievement({
       return;
     }
 
-    setIsSubmitting(true);
-    setErrorMessage("");
+    // Resolve effective member ID and activity ID
+    const effectiveMemberId =
+      members?.find((m) => m.id === selectedMemberId)?.id ||
+      members?.[0]?.id ||
+      selectedMemberId;
+
+    const effectiveActivityId =
+      activityList.find((a) => a.id === activityId)?.id ||
+      activityList[0]?.id ||
+      activityId;
+
+    if (!effectiveMemberId) {
+      setErrorMessage("Please select the contributing team member for this milestone.");
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const formData = new FormData();
-      formData.append("memberId", selectedMemberId);
-      formData.append("activityId", activityId || activityList[0].id);
+      formData.append("memberId", effectiveMemberId);
+      formData.append("activityId", effectiveActivityId);
       formData.append("details", details.trim());
       formData.append("occurredOn", new Date().toISOString().split("T")[0]);
 

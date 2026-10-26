@@ -53,6 +53,7 @@ export function MemberFlashcard({ member }: MemberFlashcardProps) {
           height={144}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           priority
+          unoptimized
         />
         {/* Subtle view dossier hover pill */}
         <div className="absolute inset-0 bg-ink/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-2">

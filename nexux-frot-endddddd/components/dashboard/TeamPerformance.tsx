@@ -81,6 +81,7 @@ export function TeamPerformance({ standing, members, currentUser }: TeamPerforma
                 width={48}
                 height={48}
                 className="w-full h-full object-cover"
+                unoptimized
               />
             </div>
             <div>

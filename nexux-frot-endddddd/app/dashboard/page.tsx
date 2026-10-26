@@ -73,12 +73,18 @@ export default function DashboardPage() {
             role: parsed.role || DEFAULT_USER.role,
           });
         }, 0);
+      } else {
+        router.push("/login");
+        return;
       }
-    } catch {}
+    } catch {
+      router.push("/login");
+      return;
+    }
     setTimeout(() => {
       setIsMounted(true);
     }, 0);
-  }, []);
+  }, [router]);
 
   // Active section: 1 to 6
   const [activeSection, setActiveSection] = useState<number>(1);
@@ -133,99 +139,63 @@ export default function DashboardPage() {
     router.push("/login");
   };
 
-  // Switch role for quick live testing
-  const toggleRole = () => {
-    const newRole = currentUser.role === "CORE" ? "MEMBER" : "CORE";
-    setCurrentUser((prev) => ({ ...prev, role: newRole }));
-    if (newRole === "MEMBER" && activeSection === 4) {
-      setActiveSection(1); // Redirect away from core-only section
-    }
-  };
 
   // Submit achievement callback
-  const handleSubmitSuccess = (newSub: AchievementSubmission) => {
+  const handleSubmitSuccess = async (newSub: AchievementSubmission) => {
     setSubmissions((prev) => [newSub, ...prev]);
+    // Refresh live submissions in background
+    try {
+      const liveSubs = await fetchSubmissions();
+      if (liveSubs && liveSubs.length > 0) {
+        setSubmissions(liveSubs);
+      }
+    } catch (e) {
+      console.warn("Background fetch after submit:", e);
+    }
   };
 
   // Approve achievement callback
   const handleApprove = async (id: string) => {
     const targetSub = submissions.find((s) => s.id === id);
     if (!targetSub) return;
+    const pointsToAward = targetSub.points > 0 ? targetSub.points : 20;
 
     try {
-      await verifySubmissionApi(id, targetSub.points, currentUser.name);
+      await verifySubmissionApi(id, pointsToAward, currentUser.name);
+
+      // Re-sync all state with Supabase database
+      const [fetchedMembers, fetchedSubmissions] = await Promise.all([
+        fetchMembers(),
+        fetchSubmissions(),
+      ]);
+      setMembers(fetchedMembers);
+      setSubmissions(fetchedSubmissions);
+      const realStanding = await fetchTeamStanding(fetchedMembers);
+      setStanding(realStanding);
     } catch (err) {
       console.error("Failed to verify submission in database:", err);
+      alert("Failed to verify submission: " + (err instanceof Error ? err.message : "Database error"));
     }
-
-    setSubmissions((prev) =>
-      prev.map((sub) => {
-        if (sub.id === id) {
-          // Update standing score
-          setStanding((s) => ({
-            ...s,
-            totalScore: s.totalScore + sub.points,
-            weeklyGrowth: Number((s.weeklyGrowth + 1.2).toFixed(1)),
-          }));
-
-          // Update member points
-          setMembers((mList) =>
-            mList.map((m) => {
-              if (m.name.toLowerCase().includes(sub.memberName.toLowerCase())) {
-                return {
-                  ...m,
-                  points: (m.points || 0) + sub.points,
-                  completedTasks: (m.completedTasks || 0) + 1,
-                  achievements: [
-                    {
-                      id: `ach-${Date.now()}`,
-                      title: sub.activityTitle,
-                      date: sub.achievedOn,
-                      points: sub.points,
-                      category: sub.department,
-                    },
-                    ...m.achievements,
-                  ],
-                };
-              }
-              return m;
-            })
-          );
-
-          return {
-            ...sub,
-            status: "VERIFIED" as const,
-            reviewedBy: currentUser.name,
-            reviewedAt: "Just now",
-          };
-        }
-        return sub;
-      })
-    );
   };
 
   // Reject achievement callback
   const handleReject = async (id: string, reason: string) => {
     try {
       await rejectSubmissionApi(id, reason, currentUser.name);
+
+      // Re-sync all state with Supabase database
+      const [fetchedMembers, fetchedSubmissions] = await Promise.all([
+        fetchMembers(),
+        fetchSubmissions(),
+      ]);
+      setMembers(fetchedMembers);
+      setSubmissions(fetchedSubmissions);
+      const realStanding = await fetchTeamStanding(fetchedMembers);
+      setStanding(realStanding);
     } catch (err) {
       console.error("Failed to reject submission in database:", err);
+      alert("Failed to reject submission: " + (err instanceof Error ? err.message : "Database error"));
     }
-
-    setSubmissions((prev) =>
-      prev.map((sub) => {
-        if (sub.id === id) {
-          return {
-            ...sub,
-            status: "REJECTED" as const,
-            rejectionReason: reason,
-            reviewedBy: currentUser.name,
-            reviewedAt: "Just now",
-          };
-        }
-        return sub;
-      })
-    );
   };
 
   const navItems = [
@@ -260,18 +230,17 @@ export default function DashboardPage() {
 
         {/* User Session & Role Controls */}
         <div className="flex items-center gap-4 sm:gap-6">
-          {/* Quick Role Switcher for Pairing & Review Testing */}
-          <button
-            onClick={toggleRole}
-            title="Click to toggle between Core and Member view"
-            className="flex items-center gap-2 px-2.5 py-1 border border-hairline rounded text-[11px] font-mono hover:border-ink transition-colors"
+          {/* Authenticated Role Indicator (Read-only) */}
+          <div
+            className="flex items-center gap-2 px-2.5 py-1 border border-hairline rounded text-[11px] font-mono select-none bg-paper/50"
+            title={`Authenticated role: ${currentUser.role}`}
           >
-            <Shield className="w-3.5 h-3.5 text-blue-500" />
+            <Shield className={`w-3.5 h-3.5 ${currentUser.role === "CORE" ? "text-amber-500" : "text-blue-500"}`} />
             <span className="hidden sm:inline text-muted">ROLE:</span>
             <span className={`font-bold ${currentUser.role === "CORE" ? "text-amber-500" : "text-ink"}`}>
               {currentUser.role}
             </span>
-          </button>
+          </div>
 
           {/* User Badge */}
           <div className="flex items-center gap-2.5">
@@ -282,6 +251,7 @@ export default function DashboardPage() {
                 width={28}
                 height={28}
                 className="w-full h-full object-cover"
+                unoptimized
               />
             </div>
             <div className="hidden md:block text-left font-mono">
