@@ -1,7 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
-
-dotenv.config({ path: ".env.local" });
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("dotenv")?.config({ path: ".env.local" });
+} catch {}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
