@@ -1,8 +1,8 @@
 import fs from "fs";
 
 async function fetchSchema() {
-  const url = "https://pngrsqnoduoefdpultna.supabase.co/rest/v1/";
-  const apikey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBuZ3JzcW5vZHVvZWZkcHVsdG5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2NjM1NDAsImV4cCI6MjEwNTIzOTU0MH0.XtXy95JQfIYIlEqD3CkQxKb6VMmd8-9LgGH8gFzjR2M";
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL + "/rest/v1/";
+  const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   
   const response = await fetch(url, {
     headers: {

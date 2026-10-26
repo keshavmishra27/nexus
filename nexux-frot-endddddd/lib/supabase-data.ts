@@ -505,3 +505,85 @@ function formatRelativeTime(dateStr: string): string {
     return dateStr;
   }
 }
+
+// ─────────────────────────────────────────────────
+// API Mutations: Submit, Verify, Reject
+// ─────────────────────────────────────────────────
+
+/**
+ * Submit achievement via server API to insert into Supabase `submissions`
+ */
+export async function submitAchievementApi(
+  formData: FormData
+): Promise<AchievementSubmission> {
+  const response = await fetch("/api/submissions", {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || "Failed to submit milestone to database");
+  }
+
+  return data.submission;
+}
+
+/**
+ * Verify achievement via server API to update Supabase `submissions`
+ */
+export async function verifySubmissionApi(
+  id: string,
+  points: number,
+  reviewerName?: string
+): Promise<boolean> {
+  const response = await fetch("/api/submissions", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id,
+      action: "verify",
+      points,
+      reviewerName: reviewerName || "Core Reviewer",
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || "Failed to verify submission in database");
+  }
+
+  return true;
+}
+
+/**
+ * Reject achievement via server API to update Supabase `submissions`
+ */
+export async function rejectSubmissionApi(
+  id: string,
+  reason: string,
+  reviewerName?: string
+): Promise<boolean> {
+  const response = await fetch("/api/submissions", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id,
+      action: "reject",
+      reason,
+      reviewerName: reviewerName || "Core Reviewer",
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || "Failed to reject submission in database");
+  }
+
+  return true;
+}
+

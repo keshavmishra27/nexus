@@ -17,6 +17,8 @@ import {
   fetchSubmissions,
   fetchTeamStanding,
   fetchActivityCatalog,
+  verifySubmissionApi,
+  rejectSubmissionApi,
 } from "@/lib/supabase-data";
 import { MemberFlashcard } from "@/components/dashboard/MemberFlashcard";
 import { TeamPerformance } from "@/components/dashboard/TeamPerformance";
@@ -146,7 +148,16 @@ export default function DashboardPage() {
   };
 
   // Approve achievement callback
-  const handleApprove = (id: string) => {
+  const handleApprove = async (id: string) => {
+    const targetSub = submissions.find((s) => s.id === id);
+    if (!targetSub) return;
+
+    try {
+      await verifySubmissionApi(id, targetSub.points, currentUser.name);
+    } catch (err) {
+      console.error("Failed to verify submission in database:", err);
+    }
+
     setSubmissions((prev) =>
       prev.map((sub) => {
         if (sub.id === id) {
@@ -194,7 +205,13 @@ export default function DashboardPage() {
   };
 
   // Reject achievement callback
-  const handleReject = (id: string, reason: string) => {
+  const handleReject = async (id: string, reason: string) => {
+    try {
+      await rejectSubmissionApi(id, reason, currentUser.name);
+    } catch (err) {
+      console.error("Failed to reject submission in database:", err);
+    }
+
     setSubmissions((prev) =>
       prev.map((sub) => {
         if (sub.id === id) {
@@ -373,6 +390,7 @@ export default function DashboardPage() {
             currentUser={currentUser}
             onSubmitSuccess={handleSubmitSuccess}
             activities={activities.length > 0 ? activities : undefined}
+            members={members}
           />
         )}
 

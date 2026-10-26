@@ -21,7 +21,7 @@ export default function LoginPage() {
       identifier.toLowerCase().includes("core") ||
       identifier.toLowerCase().includes("arjun");
     const sessionData = {
-      name: isCore ? "Arjun Mehta (Lead)" : "Kaelen Voss",
+      name: isCore ? "Arjun Mehta (Lead)" : (identifier.trim().split("@")[0] || "Cohort Engineer"),
       email: identifier || "engineer@nexus.org",
       role: isCore ? "CORE" : "MEMBER",
       department: "Technical",
